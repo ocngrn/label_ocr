@@ -219,7 +219,22 @@ TASK 0의 데이터 게이트는 §2에서 통과 확인됨. 남은 것은 골�
 
 ---
 
-### Phase 2 — 라벨 전처리 + 곡면 크롭 (TASK 1)
+### Phase 2 — 라벨 전처리 + 곡면 크롭 (TASK 1) — ✅ **완료 (2026-07-31)**
+
+- **[게이트] 곡면 크롭 → `minAreaRect` 채택.** 지시서 권장안(segment unrolling)을 **기각**했다.
+  PP-OCRv5로 객관 판정: poly **CAR 0.4387**(빈 출력 27/99) vs quad **0.6172**(빈 출력 0/99).
+  5점은 동일하나 **6점 이상에서 poly의 기하가 무너진다**(종횡비 3.4→0.97). 점 순서 정규화로도 미해소.
+  근거 → [`reports/crop_method_decision.md`](../reports/crop_method_decision.md)
+- 4점 박스: `get_rotate_crop_image` 유지 (두 방식 동등 — CAR 0.7922 vs 0.7902, 표본 300)
+- 박스 분할 **(a)안** 확정 + 토큰 경계 메타데이터 보존
+- 빈 transcription 1건 → **라벨링 실수로 확인, 검출·인식 양쪽에서 제외**
+- 산출물: `labels/{det_all,rec_all}.txt`, `crops/` 8,102개, `snapshots/label_snapshot_v2.json`
+- **테스트 39건 통과** (Phase 1의 29건 + Phase 2의 10건)
+- **계획 정정**: 크롭을 `64×256`으로 미리 리사이즈하지 **않고 원본 해상도로 저장**한다.
+  리사이즈는 학습 시 `rec_image_shape`가 담당하므로, 미리 굽면 규격 변경 시 8,102개를 재생성해야 한다.
+  대신 Phase 5 합성이 실사 분포에 맞출 수 있도록 **종횡비 통계(p05/p50/p95 = 1.1/2.6/6.8)**를 스냅샷에 기록.
+
+<details><summary>원래 계획 (참고)</summary>
 
 1. 대문자 정규화 (소문자 3건 → 대문자, `label_original` 보존)
 2. `configs/dict.txt` 생성 — **§3-① 결정 반영: `'` 포함**, 소문자 제외
@@ -234,6 +249,8 @@ TASK 0의 데이터 게이트는 §2에서 통과 확인됨. 남은 것은 골�
 
 - **검증**: 크롭 8,103개 전수 생성 + 곡면 99건 육안 통과 + Phase 1 pytest 여전히 통과
 - **산출물**: `label_snapshot_v2`, `dict.txt`, 검출/인식 라벨 파일, 크롭 방식 결정 문서
+
+</details>
 
 ---
 
