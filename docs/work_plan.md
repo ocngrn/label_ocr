@@ -188,7 +188,15 @@ class CropByPolys(det_box_type="poly")
 
 ---
 
-### Phase 1 — 스캐폴딩 + 재현성 기반 (TASK 0 잔여분)
+### Phase 1 — 스캐폴딩 + 재현성 기반 (TASK 0 잔여분) — ✅ **완료 (2026-07-31, `d186178`)**
+
+- **테스트 29건 전부 통과** (`python -m pytest tests/ -q`)
+- `configs/dict.txt` **45자** 확정 (`'()-./0123456789:=A-Z·`) → `out_channels=47` (= 45 + 공백 + CTC blank)
+- 자산 게이트 재확인: 누락 0 / 미라벨 0 / 손상 0 / 2560×1920 단일
+- `snapshots/label_snapshot_v1.json` — 라벨 SHA256 + 이미지 2,340장 개별 SHA256
+- **파생 발견**: `use_space_char=True` 가 공백을 문자 목록에 **자동 추가**하므로 `dict.txt` 에 공백 줄을 넣으면 인덱스가 중복된다 → 사전에서 공백 제외 + 회귀 테스트 추가
+
+<details><summary>원래 계획 (참고)</summary>
 
 TASK 0의 데이터 게이트는 §2에서 통과 확인됨. 남은 것은 골격과 재현성 장치뿐이다.
 
@@ -206,6 +214,8 @@ TASK 0의 데이터 게이트는 §2에서 통과 확인됨. 남은 것은 골�
 
 - **검증**: `pytest tests/ -v` 전항 통과.
 - **산출물**: `reports/data_profile_v1.md`, `reports/image_asset_check_v1.md`(§2 내용), git 초기 커밋
+
+</details>
 
 ---
 
