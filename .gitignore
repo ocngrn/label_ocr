@@ -1,0 +1,20 @@
+# 원본 이미지 (1.4GB) — Label.txt 만 버전 관리하고 이미지는 스냅샷 해시로 추적
+image_set/*.jpg
+image_set/Cache.cach
+image_set/fileState.txt
+
+# 생성 산출물
+crops/
+lmdb/
+experiments/*
+!experiments/.gitkeep
+*.tar
+*.pdparams
+*.pdopt
+
+# 도구
+.bkit/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
