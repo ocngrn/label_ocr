@@ -1,0 +1,27 @@
+{
+  "PP-OCRv5_server_det": {
+    "model": "PP-OCRv5_server_det",
+    "images_evaluated": 318,
+    "iou_threshold": 0.5,
+    "overall": {
+      "gt": 1022,
+      "pred": 1294,
+      "tp": 677,
+      "recall": 0.662426614481409,
+      "precision": 0.5231839258114374,
+      "hmean": 0.584628670120898
+    },
+    "plane": {
+      "gt": 923,
+      "tp": 656,
+      "recall": 0.7107258938244854,
+      "precision_matched": 1.0
+    },
+    "curved": {
+      "gt": 99,
+      "tp": 21,
+      "recall": 0.21212121212121213,
+      "precision_matched": 1.0
+    }
+  }
+}
