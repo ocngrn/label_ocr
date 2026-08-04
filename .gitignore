@@ -18,3 +18,6 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .venv/
+
+# 검출 캐시는 재생성 가능하고 용량이 커서 제외
+reports/detect_cache_test.json
