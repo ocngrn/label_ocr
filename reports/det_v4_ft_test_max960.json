@@ -1,0 +1,33 @@
+{
+  "det_v4_ft_test_max960": {
+    "model": "det_v4_ft_test_max960",
+    "split": "test",
+    "extra_curved": false,
+    "images_evaluated": 234,
+    "iou_threshold": 0.5,
+    "overall": {
+      "gt": 762,
+      "pred": 682,
+      "tp": 561,
+      "recall": 0.7362204724409449,
+      "precision": 0.8225806451612904,
+      "hmean": 0.7770083102493075
+    },
+    "plane": {
+      "gt": 753,
+      "tp": 560,
+      "recall": 0.7436918990703851,
+      "precision_matched": 1.0
+    },
+    "curved": {
+      "gt": 9,
+      "tp": 1,
+      "recall": 0.1111111111111111,
+      "precision_matched": 1.0
+    },
+    "resize": {
+      "limit_side_len": 960,
+      "limit_type": "max"
+    }
+  }
+}
