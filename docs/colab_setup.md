@@ -5,10 +5,14 @@
 
 ## 사전 준비 (로컬 PC, 1회)
 
-```bash
-cd o:/Project/label_ocr
-tar -czf label_ocr_images.tar.gz image_set/     # 약 1.4GB
+```powershell
+cd O:\Project\label_ocr
+tar -czf label_ocr_images.tar.gz image_set      # 약 1.34GB, 수 분 소요
 ```
+
+> **후행 슬래시를 붙이지 말 것.** Windows 의 bsdtar 에서 `image_set/` 처럼 `/` 를 붙이면
+> 인자 파싱이 깨져 엉뚱한 경로를 입력으로 잡는다:
+> `tar.exe: ...ta\Roaming\npm: Couldn't visit directory: No such file or directory`
 
 생성된 `label_ocr_images.tar.gz` 를 Google Drive 의 `MyDrive/label_ocr/` 에 업로드한다.
 

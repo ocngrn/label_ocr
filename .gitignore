@@ -21,3 +21,6 @@ __pycache__/
 
 # 검출 캐시는 재생성 가능하고 용량이 커서 제외
 reports/detect_cache_test.json
+
+# Colab 전송용 아카이브 (재생성 가능)
+label_ocr_images.tar.gz
