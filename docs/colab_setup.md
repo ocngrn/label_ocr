@@ -41,6 +41,7 @@ Colab 에서 런타임 유형을 **GPU** 로 바꾼 뒤 노트북을 위에서�
 | 셀 | 내용 | 비고 |
 |---|---|---|
 | 1 | GPU 확인 + `paddlepaddle-gpu` 설치 | CUDA 버전에 맞춰 인덱스 URL 수정 |
+| 1-B | **`nvidia-nccl-cu12` 복구** | 아래 "torch 가 깨지는 이유" 참조 |
 | 2 | Drive 마운트 + 이미지를 `/content` 로 해제 | Drive 직접 읽기는 DataLoader 가 느려진다 |
 | 3 | 저장소 clone + PaddleOCR 2.10.0 + 가중치 | |
 | **4** | **[게이트] Phase 0 스모크 테스트 GPU 재실행** | 실패 시 중단 |
@@ -58,6 +59,33 @@ PaddleOCR 2.10.0(2021년 세대 코드)이 paddlepaddle 3.3.x **GPU 빌드**에�
 **셀 6** — 지금까지 모든 측정은 `PP-OCRv5_server_det` 로 했는데, 학습은 Phase 0 결정에 따라
 2.x(최대 PP-OCRv4)에서 이뤄진다. 같은 계열로 기준선을 다시 잡지 않으면
 **"학습 덕분에 오른 것"과 "모델 세대가 달라서 내린 것"이 섞여** 판정이 불가능해진다.
+
+## torch 가 깨지는 이유 (셀 1-B)
+
+셀 1의 pip 출력 끝에 나오는 의존성 충돌 경고는 **무해하지 않다.**
+
+```
+torch 2.11.0+cu128 requires nvidia-nccl-cu12==2.28.9, but you have 2.25.1
+```
+
+`paddlepaddle-gpu` 가 Colab 기본 torch 의 nvidia-* 핀을 덮어써서 torch import 가 깨진다
+(`libtorch_cuda.so: undefined symbol: ncclCommShrink`).
+
+우리 파이프라인에 torch 는 없지만 **전이 import 로 끌려온다**:
+
+```
+src/preprocess/crop.py  ->  paddlex
+paddlex/inference/utils/official_models.py  ->  import modelscope   # 가드 없는 최상위 import
+modelscope 로거  ->  import torch
+```
+
+`paddlex` 없이는 `CropByPolys`(크롭)도 `CTCLabelDecode`(인식 신뢰도)도 못 쓰므로 우회 불가다.
+셀 1-B 가 `nvidia-nccl-cu12==2.28.9` 를 되돌린다. **단일 GPU 학습에서 paddle 은 nccl 을
+쓰지 않으므로**(nccl 은 다중 카드 collective 통신용) paddle 쪽은 영향받지 않는다.
+
+> 이 오류가 pytest 에서는 `RuntimeError: PDX has already been initialized` 로도 나타난다.
+> 첫 import 가 중간에 죽으면서 paddlex 가 반쯤 초기화된 상태로 남고, 다음 테스트 모듈이
+> 다시 import 하면서 나는 **2차 증상**이다. 원인은 하나뿐이니 따로 고칠 것이 없다.
 
 ## 세션이 끊겼을 때
 
