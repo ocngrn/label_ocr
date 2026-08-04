@@ -8,10 +8,17 @@
 
 ## 평가 대상 이미지
 
-test 234장 **+ 곡면 이미지 93장 전체**. test 에 배분된 곡면 박스는 9개뿐이라
-곡면 검출 판단이 통계적으로 불가능하다(예측 1건이 11%p). 지금은 사전학습 모델을
-그대로 재는 baseline 이라 학습이 일어나지 않았으므로, 곡면 전량을 평가에 써도
-누수가 없다.
+기본은 **test 만** (`extra_curved=False`).
+
+`extra_curved=True` 는 곡면 이미지 93장을 전부 끌어와 붙인다. test 에 배분된 곡면 박스가
+9개뿐이라 곡면 판단이 통계적으로 불가능하기 때문인데(예측 1건이 11%p),
+**이는 학습하지 않은 모델에만 쓸 수 있다.**
+
+    곡면 이미지 93장 = train 75 / val 9 / test 9
+    test + 곡면 전량 = 318장, GT 1022박스 중 236개(23.1%)가 train 출처
+
+학습한 모델을 이 위에서 재면 23%가 학습 데이터가 된다. 곡면 박스만 보면 99개 중 90개(91%)다.
+학습 모델의 곡면 성능은 곡면 5-Fold(`split_stats.md` §4)로만 정직하게 잴 수 있다.
 
 ## 지표
 
@@ -74,15 +81,28 @@ def match_boxes(gt_polys, pred_polys, thr=IOU_THRESHOLD):
     return matched
 
 
-def evaluate(model_name="PP-OCRv5_server_det", predict=None):
+def targets_for(split="test", extra_curved=False):
+    """평가 대상 이미지 목록. `extra_curved` 는 학습하지 않은 모델 전용 (모듈 docstring 참조)."""
+    records = split_mod.load_records()
+    payload = json.loads(
+        (spec.PROJECT_ROOT / "splits" / f"split_seed{spec.SPLIT_SEED}.json").read_text(encoding="utf-8"))
+    names = set(payload["split"][split])
+    if extra_curved:
+        names |= {r["image"] for r in records if r["is_curved"]}
+    return sorted(names)
+
+
+def evaluate(model_name="PP-OCRv5_server_det", predict=None,
+             split="test", extra_curved=False):
     """`predict` 를 주면 그 검출기로 잰다 — 지표·대상·매칭 규칙은 그대로 둔다.
 
     학습한 2.x 모델을 재측정할 때 이 함수를 복제하면 두 수치가 조용히 갈라진다.
     `predict(img) -> [폴리곤, ...]` 하나만 갈아끼우면 비교 가능성이 보장된다.
+
+    `extra_curved` 기본값이 False 인 이유는 모듈 docstring 참조 — 학습한 모델에
+    True 를 주면 평가 박스의 23%가 학습 데이터가 된다.
     """
     records = split_mod.load_records()
-    payload = json.loads(
-        (spec.PROJECT_ROOT / "splits" / f"split_seed{spec.SPLIT_SEED}.json").read_text(encoding="utf-8"))
 
     # 원본 폴리곤은 Label.txt 에서 box_index 로 직접 가져온다
     source = {s.image: s.boxes for s in parse_label.parse()}
@@ -91,8 +111,7 @@ def evaluate(model_name="PP-OCRv5_server_det", predict=None):
     for r in records:
         boxes_by_image[r["image"]].append(r)
 
-    curved_images = {r["image"] for r in records if r["is_curved"]}
-    targets = sorted(set(payload["split"]["test"]) | curved_images)
+    targets = targets_for(split, extra_curved)
 
     if predict is None:
         from paddleocr import TextDetection
@@ -137,6 +156,8 @@ def evaluate(model_name="PP-OCRv5_server_det", predict=None):
 
     return {
         "model": model_name,
+        "split": split,
+        "extra_curved": extra_curved,
         "images_evaluated": len(targets),
         "iou_threshold": IOU_THRESHOLD,
         "overall": {"gt": total, "pred": total_pred, "tp": total_tp,

@@ -43,15 +43,19 @@ from src import spec
 from src.eval import detect_baseline
 
 
-def build_predict(paddleocr_root, config_path, weights,
+def build_forward(paddleocr_root, config_path, weights,
                   limit_side_len=736, limit_type="min"):
-    """dygraph 로 추론하는 `predict(img) -> [폴리곤, ...]` 을 만든다."""
+    """`forward(img) -> (preds, shape)` 와 config 를 돌려준다.
+
+    후처리를 떼어 둔 이유는 스윕 때문이다. 순전파는 비싸고 후처리는 싸므로,
+    이미지당 순전파 1회로 파라미터 조합 전체를 평가할 수 있어야 한다
+    (`src/eval/det_sweep_trained.py`).
+    """
     sys.path.insert(0, str(paddleocr_root))
     import paddle
     import yaml
     from ppocr.data.imaug import create_operators, transform
     from ppocr.modeling.architectures import build_model
-    from ppocr.postprocess import build_post_process
 
     cfg = yaml.safe_load(open(config_path, encoding="utf-8"))
     model = build_model(cfg["Architecture"])
@@ -63,7 +67,6 @@ def build_predict(paddleocr_root, config_path, weights,
     model.set_state_dict(keep)
     model.eval()
 
-    post = build_post_process(cfg["PostProcess"])
     ops = create_operators([
         {"DetResizeForTest": {"limit_side_len": limit_side_len, "limit_type": limit_type}},
         {"NormalizeImage": {"scale": "1./255.",
@@ -73,15 +76,32 @@ def build_predict(paddleocr_root, config_path, weights,
         {"KeepKeys": {"keep_keys": ["image", "shape"]}},
     ], None)
 
-    def predict(img):
+    def forward(img):
         data = transform({"image": img}, ops)
         if data is None:
-            return []
+            return None, None
         image, shape = data
         with paddle.no_grad():
-            preds = model(paddle.to_tensor(image[None]))
-        result = post(preds, np.array([shape]))
-        return [np.asarray(p) for p in result[0]["points"]]
+            return model(paddle.to_tensor(image[None])), np.array([shape])
+
+    return forward, cfg
+
+
+def build_predict(paddleocr_root, config_path, weights,
+                  limit_side_len=736, limit_type="min", post_params=None):
+    """dygraph 로 추론하는 `predict(img) -> [폴리곤, ...]` 을 만든다."""
+    sys.path.insert(0, str(paddleocr_root))
+    from ppocr.postprocess import build_post_process
+
+    forward, cfg = build_forward(paddleocr_root, config_path, weights,
+                                 limit_side_len, limit_type)
+    post = build_post_process({**cfg["PostProcess"], **(post_params or {})})
+
+    def predict(img):
+        preds, shape = forward(img)
+        if preds is None:
+            return []
+        return [np.asarray(p) for p in post(preds, shape)[0]["points"]]
 
     return predict
 
