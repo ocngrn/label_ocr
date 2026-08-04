@@ -162,7 +162,8 @@ python -m src.eval.detect_trained --weights <weights>/best_accuracy --tag det_v4
 | 항목 | 값 |
 |---|---|
 | 산출물 | `reports/det_v4_{pretrained,finetuned,pre_max960,ft_max960,ft_max1920}.json` |
-| 체크포인트 | Drive `experiments/det_v4_server/best_accuracy` (epoch 24) |
+| 체크포인트 | Drive `experiments/det_v4_server/best_accuracy` (epoch 24) — **유일본** |
+| 체크포인트 md5 | `172069b843611f08c590d15a8ef92046` (113,981,655B, 파라미터 367, NaN 없음) |
 | 폐기된 실험 | Drive `experiments/det_v4_lr1e-3_aborted` (lr 1e-3, hmean 하락) |
 | 학습 설정 | Adam + Cosine(1e-4, warmup 2), DBLoss, batch 8, 50 epoch, **AMP off** |
 | 데이터 | train 1872 / val 234 / `label_snapshot_v2` / 분할 시드 42 |

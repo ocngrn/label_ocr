@@ -411,6 +411,29 @@ Colab A100 에 SSH 터널(노트북 셀 2-T)로 붙어 전 과정을 직접 실�
 > **Colab 접속 절차**: 셀 1 → 2 → 2-T 실행 후 터널 주소를 받으면 SSH 로 직접 제어 가능
 > (`docs/colab_setup.md`). 런타임·터널 모두 수시로 죽으므로 체크포인트는 Drive 에만 둔다.
 
+### Drive 자산 (2026-08-04 기준, 세션 종료 후에도 잔존)
+
+`MyDrive/label_ocr/` — Drive 여유 46GB / 100GB
+
+| 경로 | 크기 | 성격 |
+|---|---|---|
+| `label_ocr_images.tar.gz` | 1.44GB | 이미지 아카이브. 로컬에서 재생성 가능 |
+| `experiments/det_v4_server/best_accuracy.*` | 342MB | **M3 학습 결과 (epoch 24). 유일본** |
+| `experiments/det_v4_server/iter_epoch_{5..50}.*` | 3.4GB | 중간 체크포인트. best 확정 후 불필요 |
+| `experiments/det_v4_lr1e-3_aborted/` | 1.3GB | 폐기된 실험. 수치는 `m3_det_finetune.md` 에 기록됨 |
+
+**`best_accuracy.pdparams` 무결성 검증 (2026-08-04)**
+`md5 = 172069b843611f08c590d15a8ef92046`, 크기 113,981,655B, 파라미터 367개, NaN 없음.
+
+> ⚠️ **로컬 사본이 없다.** `.gitignore` 가 `*.pdparams` 를 제외하고 파일도 114MB 라
+> git 에 넣을 수 없다. 터널 경유 `scp` 는 10분에 70MB 에서 끊겼다(cloudflare 임시 터널은
+> 대용량 전송에 부적합).
+> **권장: Drive 웹에서 `best_accuracy.pdparams` + `.states` + `config.yml` 을 직접 내려받아
+> `experiments/det_v4_server/` 에 둘 것.** md5 로 대조 가능하다.
+>
+> 정리해도 되는 것: `iter_epoch_*`(3.4GB), `det_v4_lr1e-3_aborted`(1.3GB).
+> `best_accuracy` 와 `config.yml` 은 재현에 필요하므로 남긴다.
+
 ### 열린 스레드 (발동 조건과 함께)
 
 | # | 항목 | 발동 조건 / 시점 | 근거 문서 |
