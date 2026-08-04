@@ -74,9 +74,12 @@ def match_boxes(gt_polys, pred_polys, thr=IOU_THRESHOLD):
     return matched
 
 
-def evaluate(model_name="PP-OCRv5_server_det"):
-    from paddleocr import TextDetection
+def evaluate(model_name="PP-OCRv5_server_det", predict=None):
+    """`predict` 를 주면 그 검출기로 잰다 — 지표·대상·매칭 규칙은 그대로 둔다.
 
+    학습한 2.x 모델을 재측정할 때 이 함수를 복제하면 두 수치가 조용히 갈라진다.
+    `predict(img) -> [폴리곤, ...]` 하나만 갈아끼우면 비교 가능성이 보장된다.
+    """
     records = split_mod.load_records()
     payload = json.loads(
         (spec.PROJECT_ROOT / "splits" / f"split_seed{spec.SPLIT_SEED}.json").read_text(encoding="utf-8"))
@@ -91,7 +94,12 @@ def evaluate(model_name="PP-OCRv5_server_det"):
     curved_images = {r["image"] for r in records if r["is_curved"]}
     targets = sorted(set(payload["split"]["test"]) | curved_images)
 
-    detector = TextDetection(model_name=model_name, enable_mkldnn=False)
+    if predict is None:
+        from paddleocr import TextDetection
+        detector = TextDetection(model_name=model_name, enable_mkldnn=False)
+
+        def predict(img):
+            return [np.asarray(p) for p in list(detector.predict([img]))[0]["dt_polys"]]
 
     tp = {"plane": 0, "curved": 0}
     total_gt = {"plane": 0, "curved": 0}
@@ -100,8 +108,7 @@ def evaluate(model_name="PP-OCRv5_server_det"):
 
     for n, name in enumerate(targets, 1):
         img = cv2.imread(str(spec.IMAGE_DIR / name))
-        result = list(detector.predict([img]))[0]
-        preds = [np.asarray(p) for p in result["dt_polys"]]
+        preds = predict(img)
         total_pred += len(preds)
 
         gts = boxes_by_image[name]

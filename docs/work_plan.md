@@ -375,32 +375,58 @@ TASK 0의 데이터 게이트는 §2에서 통과 확인됨. 남은 것은 골�
 
 ---
 
+### Phase 8 — M3 검출 fine-tuning — ⚠️ **목표 미달, 개선 실재 (2026-08-04)**
+
+근거 → [`reports/m3_det_finetune.md`](../reports/m3_det_finetune.md)
+
+Colab A100 에 SSH 터널(노트북 셀 2-T)로 붙어 전 과정을 직접 실행했다.
+
+| 가중치 | 해상도 | plane recall | precision | Hmean |
+|---|---|---|---|---|
+| 사전학습 | 960/max | 67.0% | 52.7% | 57.1% |
+| 학습후 | 960/max | 73.5% | **76.2%** | **72.4%** |
+| **학습후** | **원본 2560×1920** | **78.5%** | 56.5% | 63.8% |
+
+- **해상도와 fine-tuning 은 독립 효과**, 각각 약 +5~7%p, 합계 **+11.5%p**
+- precision 52.7% → 76.2% (+23.5%p) 가 **박스 규약을 배웠다는 증거** — 예측 수 1208 → 924
+- 잡은 버그 2건: **AMP 가 Dice loss 를 fp16 오버플로로 죽임**, **lr 1e-3 이 사전학습 특징 파괴**
+  (둘 다 "학습이 도는 것처럼 보이면서" 결과를 무의미하게 만든다)
+- best 는 epoch 24 — 50 epoch 은 과했다. "더 오래"는 남은 지렛대가 아니다
+
+---
+
 ## 🔴 현재 위치 및 다음 행동
 
-**시스템 Top-5 = 62.9%** (검출 73.1% × 조건부 인식 86.0%) / 목표 ≥95%
+**시스템 Top-5 = 67.2% 추정** (plane recall 78.5% × 조건부 인식 85.6%) / M3 목표 81% **미달**
+
+> 이전 62.9%(M2-B, PP-OCRv5 기준)에서 +4.3%p. 목표 81% 는 plane recall 약 95% 를 요구하므로
+> **격차 16.5%p** 가 남았다.
 
 ### 다음 단 하나의 행동
-1. ~~`label_ocr_images.tar.gz` 를 Drive `MyDrive/label_ocr/` 에 업로드~~ ✅ **완료 (2026-08-04)**
-2. **← 여기부터**: Colab 에서 `notebooks/train_det.ipynb` 실행 (런타임 GPU)
-3. **셀 4 게이트**(GPU 호환성) → **셀 6 게이트**(v4 baseline) → 셀 7 학습
+1. **← 여기부터**: **검출 후처리 재스윕** (`box_thresh` / `unclip_ratio`)
+   M1 스윕은 사전학습 PP-OCRv5 분포에서 했다. 학습으로 출력 분포가 실제로 바뀌었으므로
+   (precision +23.5%p) 이번엔 개선 여지가 있다. **학습 불필요, GPU 30분.**
+2. 그 다음: 학습/추론 스케일 정합 — 640 크롭으로 학습하고 2560 원본으로 추론 중이다
 
-> **가장 깨지기 쉬운 지점**: 셀 1(`paddlepaddle-gpu` 설치 — CUDA 버전을 `nvidia-smi` 에 맞춰
-> 인덱스 URL 수정해야 함)과 셀 4(2.10.0 코드가 paddle 3.3.x **GPU** 빌드에서 도는지 미검증).
-> 실패 시 해당 셀의 전체 출력이 필요하다.
+> **Colab 접속 절차**: 셀 1 → 2 → 2-T 실행 후 터널 주소를 받으면 SSH 로 직접 제어 가능
+> (`docs/colab_setup.md`). 런타임·터널 모두 수시로 죽으므로 체크포인트는 Drive 에만 둔다.
 
 ### 열린 스레드 (발동 조건과 함께)
 
 | # | 항목 | 발동 조건 / 시점 | 근거 문서 |
 |---|---|---|---|
-| 1 | **L3 재측정 어댑터 미구현** | 학습 직후 필수. `end_to_end.py` 는 paddleocr 3.7 API 인데 학습 산출물은 2.x export | `colab_setup.md` |
-| 2 | **Phase 0 재검토 (2.x vs 3.x)** | M3 에서 fine-tuned v4 가 무조정 v6(Exact 49.7%)를 못 넘으면 | `baseline_v1.md` §7 |
-| 3 | `limit_side_len` 스윕 미완 | GPU 확보 시 (로컬 CPU 로는 20장 40분에도 미완) | `det_finetune_decision.md` §4 |
-| 4 | 검출 후처리 재스윕 | 학습 후 출력 분포가 바뀌면 | `build_det_config.py` docstring |
+| 1 | ~~L3 재측정 어댑터~~ | ✅ `src/eval/detect_trained.py` 로 해결 (dygraph 직접 추론) | `m3_det_finetune.md` §3 |
+| 2 | ~~Phase 0 재검토 (2.x vs 3.x)~~ | ✅ **불필요** — fine-tuned v4(78.5%)가 무조정 v5(67.0%)를 넘었다 | `m3_det_finetune.md` §1 |
+| 3 | ~~`limit_side_len` 스윕~~ | ✅ 완료 — 원본 해상도가 최선(recall 기준). `limit_type='min'` 은 우리 데이터에서 무효 | `m3_det_finetune.md` §3 |
+| 4 | **검출 후처리 재스윕** | **← 지금**. 학습으로 분포가 바뀌었다 | `m3_det_finetune.md` §4 |
 | 5 | `FLIP_POLICY` 재검토 | 도메인 데이터로 방향 분류기를 학습한 뒤 | `m2b_spatial_group.md` §2 |
 | 6 | 곡면 5-Fold 미사용 | 최종 후보 1~2개로 좁힌 뒤 확정 검증에만 | `split_stats.md` §4 |
 | 7 | 인식 학습 가중 = 매칭 레버리지의 역수 | M4 착수 시 (길이 1–4 상향, 9+ 하향) | `metrics_policy.md` §5-B |
 | 8 | TASK 5 합성 우선순위 재조정 | 긴 코드 생성 **하향**(시스템 기여 9%), 짧은 코드 강건성 상향 | `baseline_v1.md` §3 |
 | 9 | `serial_db_proxy_v2` | 부품 마스터 확보 시 → Top-K 목표선 재보정 | `db_matching_v1.md` §1 |
+| 10 | **학습/추론 스케일 정합** | 후처리 재스윕이 소진되면. 640 크롭 학습 vs 2560 원본 추론 | `m3_det_finetune.md` §4 |
+| 11 | 예측 과다(원본 해상도 precision 56.5%) | UI 후보 노출 설계 시. 시스템 KPI 는 recall 지배라 학습 단계 과제가 아니다 | `m3_det_finetune.md` §1 |
+| 12 | `tools/export_model.py` paddle 3.3 에서 파손 | 추론 서버 배포 시. 현재는 dygraph 로 우회 중 | `m3_det_finetune.md` §3 |
 
 ### 로컬 실행 규약 (대화에만 있던 것 — 여기 고정)
 
