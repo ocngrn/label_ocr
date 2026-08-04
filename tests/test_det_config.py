@@ -51,9 +51,16 @@ def test_resume_checkpoint_is_propagated():
         == "/drive/exp/det/latest"
 
 
-def test_amp_is_on_by_default():
-    """Colab VRAM 여유 확보 (지시서 6-C)."""
-    assert det_overrides(**KW)["Global"]["use_amp"] is True
+def test_amp_is_off_by_default():
+    """AMP 는 DBLoss 의 Dice 항을 조용히 망가뜨린다 — 켜면 학습이 통째로 무의미해진다.
+
+    fp16 에서 `union = sum(pred * mask)` 가 164만 픽셀 합이라 상한 65504 를 넘어 inf 가
+    되고, intersection 은 텍스트 픽셀(약 2%)만 더해 정상이므로 Dice 가 정확히 1.0 에
+    고정된다(2026-08-04 A100 실측: loss_shrink_maps 가 300스텝 내내 5.000000).
+    순전파 출력은 정상으로 보이므로 이 회귀는 손실값으로만 잡힌다.
+    VRAM 절감보다 학습이 실제로 되는 것이 우선이다.
+    """
+    assert det_overrides(**KW)["Global"]["use_amp"] is False
 
 
 def test_build_merges_into_a_real_template(tmp_path):

@@ -22,6 +22,20 @@ baseline 을 PP-OCRv5_server_det 로 쟀으므로 server 계열로 맞춘다
 
 M1 스윕에서 `thresh=0.3 / box_thresh=0.6 / unclip_ratio` 기본값을 넘는 조합이 없었다
 (`reports/m1_m2_detection.md`). 학습 후 분포가 바뀌면 재스윕한다.
+
+## AMP 를 쓰지 않는다 (`use_amp=False`)
+
+DBLoss 의 Dice 항이 fp16 에서 **조용히 망가진다.** 손실이 정확히 고정되는 것으로 드러난다:
+
+    loss_shrink_maps: 5.000000   loss_binary_maps: 1.000000   loss_cbn: 1.000000
+
+`union = sum(pred * mask)` 는 배치 4 x 640 x 640 = 164만 픽셀의 합이라 fp16 상한
+65504 를 넘겨 `inf` 가 된다. 반면 `intersection` 은 텍스트 픽셀(약 2%)만 더하므로
+정상 범위다. 따라서 `1 - 2 * intersection / inf` = **정확히 1.0** 이 되고 기울기가 0 이 된다.
+`loss_threshold_maps` 만 정상으로 보이는 이유는 그것이 마스크 합으로 나누는 L1 이라
+오버플로가 없기 때문이다. PaddleOCR 의 `amp_level` 기본값이 O2(순수 fp16)라 더 잘 터진다.
+
+순전파 출력만 보면 정상이라 발견이 늦는다. 판정은 **손실이 실제로 내려가는가**로 한다.
 """
 
 import argparse
@@ -46,7 +60,7 @@ def deep_merge(base: dict, override: dict) -> dict:
 
 
 def det_overrides(root, weights, save_dir, checkpoints=None,
-                  epochs=50, batch_size=8, num_workers=4, use_amp=True):
+                  epochs=50, batch_size=8, num_workers=4, use_amp=False):
     """우리 데이터·환경에 맞춘 override 트리.
 
     `root` 는 Colab 세션 로컬 디스크의 프로젝트 루트(예: `/content/label_ocr`).
