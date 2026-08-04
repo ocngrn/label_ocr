@@ -19,6 +19,21 @@ tar -czf label_ocr_images.tar.gz image_set      # 약 1.34GB, 수 분 소요
 **크롭(`crops/`, 233MB)은 올리지 않는다** — 노트북 셀 5가 `build_labels` 로 재생성한다.
 코드는 GitHub(`ocngrn/label_ocr`)에서 `git clone` 하므로 전송할 필요가 없다.
 
+### GitHub 인증 (private 저장소)
+
+`ocngrn/label_ocr` 는 private 이라 Colab 런타임에서 익명 clone 이 실패한다:
+
+```
+fatal: could not read Username for 'https://github.com': No such device or address
+```
+
+셀 3이 이를 감지하면 **PAT 입력창**(`getpass`)을 띄운다. 토큰은 노트북 파일에도 셀 출력에도
+남지 않지만, 세션이 초기화될 때마다 다시 입력해야 한다.
+매번 입력하기 싫으면 저장소를 public 으로 전환한다 — 이미지·라벨·크롭은 저장소에 없다.
+
+> Colab 의 "GitHub 에서 노트북 열기"는 Colab 자체 OAuth 라 private 도 열리지만,
+> 그 자격증명은 **런타임의 `git` 에 상속되지 않는다.** 노트북이 열렸다고 clone 이 되는 게 아니다.
+
 ## 실행 순서
 
 Colab 에서 런타임 유형을 **GPU** 로 바꾼 뒤 노트북을 위에서부터 실행한다.
