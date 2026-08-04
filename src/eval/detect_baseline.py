@@ -1,6 +1,7 @@
 """TASK 4-3 [게이트] — 검출 baseline 및 fine-tuning 필요성 판단.
 
 실행: python -m src.eval.detect_baseline
+      python -m src.eval.detect_baseline --model PP-OCRv4_server_det --out baseline_det_v4.json
 
 지시서는 검출 성능을 **평면(4점)/곡면(5점 이상) 서브셋으로 나눠** 재라고 요구한다.
 통합 수치만 보면 곡면 실패(1.2%)가 평면 다수(98.8%)에 묻히기 때문이다.
@@ -25,6 +26,7 @@ paddle 3.3.1 CPU 에서 검출 모델은 oneDNN 경로가 깨진다
 (`ConvertPirAttribute2RuntimeAttribute not support`). `enable_mkldnn=False` 필수.
 """
 
+import argparse
 import json
 from collections import defaultdict
 
@@ -138,9 +140,9 @@ def evaluate(model_name="PP-OCRv5_server_det"):
 
 
 
-def main():
+def main(models=("PP-OCRv5_server_det",), out_name="baseline_det_metrics.json"):
     out = {}
-    for name in ("PP-OCRv5_server_det",):
+    for name in models:
         m = evaluate(name)
         out[name] = m
         o = m["overall"]
@@ -151,10 +153,14 @@ def main():
             s = m[k]
             print(f"  {k:6s} GT={s['gt']:4d} TP={s['tp']:4d}  recall={s['recall']*100:.1f}%")
 
-    path = spec.PROJECT_ROOT / "reports" / "baseline_det_metrics.json"
+    path = spec.PROJECT_ROOT / "reports" / out_name
     path.write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
     return out
 
 
 if __name__ == "__main__":
-    main()
+    p = argparse.ArgumentParser()
+    p.add_argument("--model", action="append", help="반복 지정 가능")
+    p.add_argument("--out", default="baseline_det_metrics.json", help="reports/ 아래 파일명")
+    a = p.parse_args()
+    main(tuple(a.model or ["PP-OCRv5_server_det"]), a.out)

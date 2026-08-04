@@ -96,6 +96,23 @@ Colab 은 런타임이 수시로 초기화된다. 체크포인트는 Drive(`expe
 2. 셀 7 의 `RESUME` 을 `f"{DRIVE}/experiments/det_v4_server/latest"` 로 설정
 3. 셀 7 재실행
 
+## 두 세대가 한 커널에 공존한다 (셀 4·6 이 서브프로세스인 이유)
+
+노트북은 PaddleOCR 을 **두 벌** 쓴다.
+
+| 용도 | 무엇 | 어디 |
+|---|---|---|
+| 학습 (`tools/train.py`) | 2.10.0 저장소 | `/content/PaddleOCR` |
+| 추론·평가 (`TextDetection`) | pip `paddleocr` 3.7.0 | `dist-packages` |
+
+2.x 를 쓰려면 `sys.path` 앞에 `/content/PaddleOCR` 을 꽂아야 하는데, 그러면 같은 커널에서
+`import paddleocr` 가 3.7.0 패키지 대신 **2.x 저장소의 `paddleocr.py`** 를 집는다.
+그 파일은 `ppstructure` 를 끌어오고 결국 `ModuleNotFoundError: No module named 'docx'` 로 죽는다.
+
+`pip install python-docx` 로 덮는 것은 **오답**이다. 3.7 API 를 쓰려던 코드가 2.x 모듈로
+바꿔치기된 것이 문제이지 패키지가 모자란 것이 아니다. 그래서 셀 4·6 은 서브프로세스로 돌려
+각자 깨끗한 `sys.path` 를 쓴다.
+
 ## 알려진 제약
 
 - **L3(end-to-end) 재측정은 노트북 범위 밖이다.** `src/eval/end_to_end.py` 는 `paddleocr` 3.7 의
