@@ -340,13 +340,84 @@ TASK 0의 데이터 게이트는 §2에서 통과 확인됨. 남은 것은 골�
 - **길이별 순위가 뒤집힘**: GT크롭 최고였던 9–14자(94.1%)가 시스템 최하위(50.3%) — 검출 recall 60.8%
 - 자원 배분: 검출 +10%p → **+8.5%p** vs 인식 +10%p → +7.2%p. **검출 1순위 확정**
 - 채택 제안: **검출·인식은 토큰 단위, DB 조회는 재결합 후** (게이트 검증 후 적용)
-- 마일스톤 재정의: M1 ≥72% → M2 ≥81% → M3 ≥87% → M4 ≥92% → 최종 ≥95%
+- 마일스톤은 이후 실측으로 재정의됨 → [`metrics_policy.md`](metrics_policy.md) 7장 (이 줄의 옛 값은 폐기)
 
 **테스트 114건 통과** (Phase 5에서 13건 + end-to-end 7건)
 
 ---
 
-### Phase 6 이후 — TASK 5 → 6(1~5단계) → 7
+### Phase 6 — 검출 병목 해소 시도 (M1 / M2 / M2-B) — ✅ **완료 (2026-08-03~04)**
+
+근거 → [`reports/m1_m2_detection.md`](../reports/m1_m2_detection.md), [`reports/m2b_spatial_group.md`](../reports/m2b_spatial_group.md)
+
+| 시도 | 결과 |
+|---|---|
+| **M1** 검출 후처리 스윕 (`unclip_ratio`/`box_thresh`/`thresh`) | ❌ **개선 0** — unclip 은 컨투어 추출 *뒤* 팽창이라 조각을 못 합침 |
+| **M2** GT 로 조각 재결합 | ⚠️ 76.1% — **GT 필요, 배포 불가** (상한 측정치) |
+| **M2-B** GT 없는 공간 그룹핑 | ❌ **62.9%** (+1.0%p) — 라벨 단위는 기하로 복원 불가 |
+
+- 핵심 발견: `8196 P32`는 한 박스인데 옆의 `P32`는 다른 박스 —
+  **"무엇이 한 박스인가"는 작성자의 의미론적 판단이라 간격·정렬 규칙으로 복원할 수 없다.**
+- 0°/180° 공존(파이프 뒤집힘) 반영: 방향 분류기가 우리 도메인에서 신뢰 불가
+  (뒤집으면 확신도 0.752→0.594) → `FLIP_POLICY="none"` 채택, 코드에 정책으로 남김
+- **결론: 저비용 경로 전부 소진. 검출 fine-tuning 이 필요하고 올바른 도구다**
+  (박스 규약은 후처리로는 복원 불가하지만 **학습은 가능**하기 때문)
+
+---
+
+### Phase 7 — Colab 학습 준비 — ✅ **완료 (2026-08-04)**
+
+절차 → [`docs/colab_setup.md`](colab_setup.md) / 노트북 → [`notebooks/train_det.ipynb`](../notebooks/train_det.ipynb)
+
+- GitHub 원격 연결 (`ocngrn/label_ocr`, 코드 3.6MB / 이미지 미추적)
+- `src/configs/build_det_config.py` — `spec.py` 기반 config 생성 (실제 2.10.0 템플릿으로 검증)
+- `label_ocr_images.tar.gz` 생성 완료 (1,369.4MB, 엔트리 2,344)
+
+---
+
+## 🔴 현재 위치 및 다음 행동
+
+**시스템 Top-5 = 62.9%** (검출 73.1% × 조건부 인식 86.0%) / 목표 ≥95%
+
+### 다음 단 하나의 행동
+1. `label_ocr_images.tar.gz` 를 Drive `MyDrive/label_ocr/` 에 업로드 ← **사용자 작업**
+2. Colab 에서 `notebooks/train_det.ipynb` 실행 (런타임 GPU)
+3. **셀 4 게이트**(GPU 호환성) → **셀 6 게이트**(v4 baseline) → 셀 7 학습
+
+### 열린 스레드 (발동 조건과 함께)
+
+| # | 항목 | 발동 조건 / 시점 | 근거 문서 |
+|---|---|---|---|
+| 1 | **L3 재측정 어댑터 미구현** | 학습 직후 필수. `end_to_end.py` 는 paddleocr 3.7 API 인데 학습 산출물은 2.x export | `colab_setup.md` |
+| 2 | **Phase 0 재검토 (2.x vs 3.x)** | M3 에서 fine-tuned v4 가 무조정 v6(Exact 49.7%)를 못 넘으면 | `baseline_v1.md` §7 |
+| 3 | `limit_side_len` 스윕 미완 | GPU 확보 시 (로컬 CPU 로는 20장 40분에도 미완) | `det_finetune_decision.md` §4 |
+| 4 | 검출 후처리 재스윕 | 학습 후 출력 분포가 바뀌면 | `build_det_config.py` docstring |
+| 5 | `FLIP_POLICY` 재검토 | 도메인 데이터로 방향 분류기를 학습한 뒤 | `m2b_spatial_group.md` §2 |
+| 6 | 곡면 5-Fold 미사용 | 최종 후보 1~2개로 좁힌 뒤 확정 검증에만 | `split_stats.md` §4 |
+| 7 | 인식 학습 가중 = 매칭 레버리지의 역수 | M4 착수 시 (길이 1–4 상향, 9+ 하향) | `metrics_policy.md` §5-B |
+| 8 | TASK 5 합성 우선순위 재조정 | 긴 코드 생성 **하향**(시스템 기여 9%), 짧은 코드 강건성 상향 | `baseline_v1.md` §3 |
+| 9 | `serial_db_proxy_v2` | 부품 마스터 확보 시 → Top-K 목표선 재보정 | `db_matching_v1.md` §1 |
+
+### 로컬 실행 규약 (대화에만 있던 것 — 여기 고정)
+
+```bash
+PYTHONIOENCODING=utf-8      # 한글 출력 시 cp949 UnicodeEncodeError 방지
+KMP_DUPLICATE_LIB_OK=TRUE   # Anaconda OpenMP 중복 로드 (Colab 불필요)
+```
+- 검출 추론은 `TextDetection(..., enable_mkldnn=False)` 필수 — paddle 3.3.1 CPU 에서 oneDNN 경로가 깨진다
+- Windows `tar` 는 후행 슬래시 금지 (`image_set/` ✗ → `image_set` ✓)
+
+### 재생성 비용이 큰 gitignored 산출물
+
+| 산출물 | 재생성 명령 | 비용 |
+|---|---|---|
+| `crops/` (233MB) | `python -m src.preprocess.build_labels` | 수 분 |
+| `reports/detect_cache_test.json` | `python -m src.eval.spatial_group cache` | **약 45분** (검출) |
+| `predictions/*.json` | 각 eval 모듈 재실행 | 모듈당 3~50분 |
+
+---
+
+### Phase 8 이후 — TASK 5 → 6(1~5단계) → 7
 
 지시서 순서를 그대로 따른다. 단 Phase 0 결과에 따라 다음 조정 적용:
 
