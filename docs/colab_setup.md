@@ -40,8 +40,7 @@ Colab 에서 런타임 유형을 **GPU** 로 바꾼 뒤 노트북을 위에서�
 
 | 셀 | 내용 | 비고 |
 |---|---|---|
-| 1 | GPU 확인 + `paddlepaddle-gpu` 설치 | CUDA 버전에 맞춰 인덱스 URL 수정 |
-| 1-B | **`nvidia-nccl-cu12` 복구** | 아래 "torch 가 깨지는 이유" 참조 |
+| 1 | 설치 + nccl 복구 + `sh()` 정의 + 검증 | pip 충돌 경고는 정상, 아래 참조 |
 | 2 | Drive 마운트 + 이미지를 `/content` 로 해제 | Drive 직접 읽기는 DataLoader 가 느려진다 |
 | 3 | 저장소 clone + PaddleOCR 2.10.0 + 가중치 | |
 | **4** | **[게이트] Phase 0 스모크 테스트 GPU 재실행** | 실패 시 중단 |
@@ -60,9 +59,24 @@ PaddleOCR 2.10.0(2021년 세대 코드)이 paddlepaddle 3.3.x **GPU 빌드**에�
 2.x(최대 PP-OCRv4)에서 이뤄진다. 같은 계열로 기준선을 다시 잡지 않으면
 **"학습 덕분에 오른 것"과 "모델 세대가 달라서 내린 것"이 섞여** 판정이 불가능해진다.
 
-## torch 가 깨지는 이유 (셀 1-B)
+## Drive 마운트가 실패할 때 (셀 2)
 
-셀 1의 pip 출력 끝에 나오는 의존성 충돌 경고는 **무해하지 않다.**
+```
+MessageError: Error: credential propagation was unsuccessful
+```
+
+**코드 결함이 아니다.** 브라우저에서 권한 팝업이 막혔거나 세션 자격증명이 런타임으로
+전파되지 않은 것이다. 셀 2가 자동으로 3회 재시도(2회차부터 `force_remount=True`)하고,
+그래도 안 되면 아래 순서로 조치한다.
+
+1. 좌측 파일 패널의 **드라이브 마운트** 버튼으로 직접 마운트
+2. 팝업·서드파티 쿠키 차단 해제 (`colab.research.google.com` 허용)
+3. 시크릿 창이면 일반 창으로. 구글 계정이 여럿이면 해당 계정만 로그인
+4. 런타임 > 세션 관리 에서 세션 종료 후 재연결
+
+## torch 가 깨지는 이유 (셀 1 후반부)
+
+셀 1의 pip 출력에 나오는 의존성 충돌 경고 중 **nccl 항목은 무해하지 않다.**
 
 ```
 torch 2.11.0+cu128 requires nvidia-nccl-cu12==2.28.9, but you have 2.25.1
@@ -80,8 +94,12 @@ modelscope 로거  ->  import torch
 ```
 
 `paddlex` 없이는 `CropByPolys`(크롭)도 `CTCLabelDecode`(인식 신뢰도)도 못 쓰므로 우회 불가다.
-셀 1-B 가 `nvidia-nccl-cu12==2.28.9` 를 되돌린다. **단일 GPU 학습에서 paddle 은 nccl 을
-쓰지 않으므로**(nccl 은 다중 카드 collective 통신용) paddle 쪽은 영향받지 않는다.
+셀 1이 마지막에 `nvidia-nccl-cu12==2.28.9` 를 되돌린다. **단일 GPU 학습에서 paddle 은
+nccl 을 쓰지 않으므로**(nccl 은 다중 카드 collective 통신용) paddle 쪽은 영향받지 않는다.
+
+되돌린 뒤에도 pip 은 `paddlepaddle-gpu requires nccl==2.25.1` 등으로 계속 짖는다.
+**pip 은 설치된 메타데이터의 핀만 보고 실제 로드 가능 여부는 모른다.** 판정 기준은
+pip 이 조용한가가 아니라 셀 1 끝의 import 검증이 통과하는가다.
 
 > 이 오류가 pytest 에서는 `RuntimeError: PDX has already been initialized` 로도 나타난다.
 > 첫 import 가 중간에 죽으면서 paddlex 가 반쯤 초기화된 상태로 남고, 다음 테스트 모듈이
