@@ -60,7 +60,7 @@ def deep_merge(base: dict, override: dict) -> dict:
 
 
 def det_overrides(root, weights, save_dir, checkpoints=None,
-                  epochs=50, batch_size=8, num_workers=4, use_amp=False):
+                  epochs=50, batch_size=8, num_workers=4, use_amp=False, lr=1e-4):
     """우리 데이터·환경에 맞춘 override 트리.
 
     `root` 는 Colab 세션 로컬 디스크의 프로젝트 루트(예: `/content/label_ocr`).
@@ -84,6 +84,11 @@ def det_overrides(root, weights, save_dir, checkpoints=None,
             "print_batch_step": 20,
             "use_visualdl": True,
         },
+        # 템플릿 기본값 1e-3 은 10만 장급 코퍼스용이다. 우리 학습셋은 1,872장이고
+        # 가르칠 것은 "글자를 찾는 법"이 아니라 박스 규약 하나뿐이라 그 값은 과하다.
+        # 실측(2026-08-04): 1e-3 으로 6 epoch 학습하면 val hmean 이 0.6370 -> 0.6024 로
+        # 오히려 내려간다. 사전학습 특징이 파괴되는 것이다.
+        "Optimizer": {"lr": {"learning_rate": lr}},
         "Train": {
             "dataset": {"data_dir": data_dir,
                         "label_file_list": [f"{root}/labels/det_train.txt"],
@@ -119,10 +124,12 @@ def main():
     p.add_argument("--checkpoints", default=None, help="resume 할 체크포인트 접두사")
     p.add_argument("--epochs", type=int, default=50)
     p.add_argument("--batch-size", type=int, default=8)
+    p.add_argument("--lr", type=float, default=1e-4)
     a = p.parse_args()
 
     cfg = build(a.template, a.out, root=a.root, weights=a.weights, save_dir=a.save_dir,
-                checkpoints=a.checkpoints, epochs=a.epochs, batch_size=a.batch_size)
+                checkpoints=a.checkpoints, epochs=a.epochs, batch_size=a.batch_size,
+                lr=a.lr)
     print(f"생성: {a.out}")
     print(json.dumps({"Global": {k: cfg["Global"][k] for k in
                                  ("use_gpu", "epoch_num", "save_epoch_step",

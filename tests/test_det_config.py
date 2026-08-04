@@ -88,3 +88,14 @@ def test_build_merges_into_a_real_template(tmp_path):
 def test_postprocess_defaults_are_untouched(tmp_path):
     """M1 스윕에서 기본값을 넘는 조합이 없었으므로 건드리지 않는다."""
     assert "PostProcess" not in det_overrides(**KW)
+
+
+def test_learning_rate_is_lowered_for_finetuning():
+    """템플릿 기본 1e-3 은 10만 장급 코퍼스용이라 1,872장 fine-tuning 에는 과하다.
+
+    실측(2026-08-04 A100): 1e-3 으로 6 epoch 학습하면 val hmean 이
+    0.6370 -> 0.6024 로 **내려간다**. 사전학습 특징이 파괴되는 것이다.
+    가르칠 것은 글자 검출 자체가 아니라 박스 규약 하나뿐이다.
+    """
+    assert det_overrides(**KW)["Optimizer"]["lr"]["learning_rate"] == 1e-4
+    assert det_overrides(**{**KW, "lr": 5e-5})["Optimizer"]["lr"]["learning_rate"] == 5e-5
