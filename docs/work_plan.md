@@ -380,9 +380,13 @@ TASK 0의 데이터 게이트는 §2에서 통과 확인됨. 남은 것은 골�
 **시스템 Top-5 = 62.9%** (검출 73.1% × 조건부 인식 86.0%) / 목표 ≥95%
 
 ### 다음 단 하나의 행동
-1. `label_ocr_images.tar.gz` 를 Drive `MyDrive/label_ocr/` 에 업로드 ← **사용자 작업**
-2. Colab 에서 `notebooks/train_det.ipynb` 실행 (런타임 GPU)
+1. ~~`label_ocr_images.tar.gz` 를 Drive `MyDrive/label_ocr/` 에 업로드~~ ✅ **완료 (2026-08-04)**
+2. **← 여기부터**: Colab 에서 `notebooks/train_det.ipynb` 실행 (런타임 GPU)
 3. **셀 4 게이트**(GPU 호환성) → **셀 6 게이트**(v4 baseline) → 셀 7 학습
+
+> **가장 깨지기 쉬운 지점**: 셀 1(`paddlepaddle-gpu` 설치 — CUDA 버전을 `nvidia-smi` 에 맞춰
+> 인덱스 URL 수정해야 함)과 셀 4(2.10.0 코드가 paddle 3.3.x **GPU** 빌드에서 도는지 미검증).
+> 실패 시 해당 셀의 전체 출력이 필요하다.
 
 ### 열린 스레드 (발동 조건과 함께)
 
