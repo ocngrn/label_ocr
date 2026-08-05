@@ -24,3 +24,6 @@ reports/detect_cache_test.json
 
 # Colab 전송용 아카이브 (재생성 가능)
 label_ocr_images.tar.gz
+
+# Colab 터널 클라이언트 (재다운로드 가능, 수십 MB)
+scripts/cloudflared.exe
