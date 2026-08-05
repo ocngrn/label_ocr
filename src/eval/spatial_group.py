@@ -249,7 +249,11 @@ def resolve_flips(entry, policy):
 
 
 def evaluate(cache, gap_ratio, matcher, canonical, split="test",
-             flip_policy="none", archive_run=None):
+             flip_policy="none", archive_run=None, grouper=None):
+    """`grouper(polys, texts, flips) -> [[조각 인덱스, ...], ...]` 를 주면 그것으로 묶는다.
+
+    채점(GT 매칭·Top-K)은 건드리지 않는다. 그래야 M2-B 의 62.9% 와 직접 비교된다.
+    """
     records = split_mod.load_records()
     payload = json.loads(
         (spec.PROJECT_ROOT / "splits" / f"split_seed{spec.SPLIT_SEED}.json").read_text(encoding="utf-8"))
@@ -271,7 +275,8 @@ def evaluate(cache, gap_ratio, matcher, canonical, split="test",
                  for i, f in enumerate(flips)]
         confs = [entry["conf_bwd"][i] if f else entry["conf_fwd"][i]
                  for i, f in enumerate(flips)]
-        groups = group_fragments(polys, gap_ratio, flips)
+        groups = (grouper(polys, texts, flips) if grouper
+                  else group_fragments(polys, gap_ratio, flips))
 
         # 그룹 합집합 폴리곤을 GT 와 매칭 (채점 정렬에만 GT 사용)
         group_polys = []
